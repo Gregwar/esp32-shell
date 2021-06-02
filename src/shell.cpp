@@ -1,11 +1,9 @@
 #include "shell.h"
-#include "USBSerial.h"
-#include <mbed.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-static mbed::Stream *stream = nullptr;
+static Stream *stream = nullptr;
 static bool disabled = false;
 
 /**
@@ -36,11 +34,11 @@ static void displayHelp(bool parameter) {
   unsigned int i;
 
   if (parameter) {
-    shell_print("Available parameters:");
+    shell_stream()->print("Available parameters:");
   } else {
-    shell_print("Available commands:");
+    shell_stream()->print("Available commands:");
   }
-  shell_println();
+  shell_stream()->println();
 
   for (i = 0; i < shell_command_count; i++) {
     const struct shell_command *command = shell_commands[i];
@@ -107,17 +105,17 @@ SHELL_COMMAND(params,
 SHELL_COMMAND(echo, "Switch echo mode. Usage echo [on|off]") {
   if ((argc == 1 && strcmp("on", argv[0])) || shell_echo_mode == false) {
     shell_echo_mode = true;
-    shell_print("Echo enabled");
+    shell_stream()->println("Echo enabled");
   } else {
     shell_echo_mode = false;
-    shell_print("Echo disabled");
+    shell_stream()->println("Echo disabled");
   }
 }
 
 /**
  * Write the shell prompt
  */
-void shell_prompt() { shell_print(SHELL_PROMPT); }
+void shell_prompt() { shell_stream()->print(SHELL_PROMPT); }
 
 const struct shell_command *
 shell_find_command(char *command_name, unsigned int command_name_length) {
@@ -167,9 +165,9 @@ bool shell_execute(char *command_name, unsigned int command_name_length,
         }
 
         if (!command) {
-          shell_print("Unknown parameter: ");
+          shell_stream()->println("Unknown parameter: ");
           stream->write(command_name, command_name_length);
-          shell_println();
+          shell_stream()->println();
           return false;
         }
       }
@@ -178,9 +176,9 @@ bool shell_execute(char *command_name, unsigned int command_name_length,
 
   // If it fails again, display the "unknown command" message
   if (command == NULL) {
-    shell_print("Unknown command: ");
+    shell_stream()->println("Unknown command: ");
     stream->write(command_name, command_name_length);
-    shell_println();
+    shell_stream()->println();
     return false;
   }
 
@@ -197,7 +195,7 @@ void shell_process() {
   unsigned int argc = 0;
   char *argv[SHELL_MAX_ARGUMENTS + 1];
 
-  shell_println();
+  shell_stream()->println();
 
   strtok_r(shell_buffer, " ", &saveptr);
   while ((argv[argc] = strtok_r(NULL, " ", &saveptr)) != NULL &&
@@ -224,54 +222,15 @@ void shell_process() {
   shell_prompt();
 }
 
-USBSerial *usbSerial = nullptr;
-
-void shell_task() {
-  while (true) {
-    shell_tick();
-  }
-}
-
-void shell_usb_task() {
-  usbSerial = new USBSerial();
-  stream = usbSerial;
-  shell_prompt();
-
-  while (true) {
-    if (usbSerial->available()) {
-      shell_tick();
-    } else {
-      ThisThread::sleep_for(5ms);
-    }
-  }
-}
-
-bool shell_available() {
-  if (usbSerial != nullptr) {
-    return usbSerial->available() > 0;
-  } else {
-    return stream->readable();
-  }
-}
-
-Thread shell_thread(osPriorityLow);
-
 /**
  * Save the Serial object globaly
  */
-void shell_init(mbed::Stream *stream_) {
+void shell_init(Stream *stream_) {
   stream = stream_;
   shell_prompt();
-
-  // Starting thread priority
-  shell_thread.start(shell_task);
 }
 
-void shell_init_usb() { shell_thread.start(shell_usb_task); }
-
-mbed::Stream *shell_stream() { return stream; }
-
-USBSerial *shell_usb_stream() { return usbSerial; }
+Stream *shell_stream() { return stream; }
 
 void shell_reset() {
   shell_pos = 0;
@@ -303,9 +262,8 @@ void shell_tick() {
   char c;
   uint8_t input;
 
-  while ((usbSerial != nullptr && usbSerial->available()) ||
-         (usbSerial == nullptr && stream->readable())) {
-    input = stream->getc();
+  while (stream->available()) {
+    input = stream->read();
     c = (char)input;
     if (c == '\0' || c == 0xff) {
       continue;
@@ -330,17 +288,17 @@ void shell_tick() {
     } else if (c == '\x7f') {
       if (shell_pos > 0) {
         shell_pos--;
-        shell_print("\x8 \x8");
+        shell_stream()->print("\x8 \x8");
       }
       // Special key
     } else if (c == '\x1b') {
-      stream->getc();
-      stream->getc();
+      stream->read();
+      stream->read();
       // Others
     } else {
       shell_buffer[shell_pos] = c;
       if (shell_echo_mode) {
-        shell_print(c);
+        shell_stream()->print(c);
       }
 
       if (shell_pos < SHELL_BUFFER_SIZE - 1) {
@@ -348,175 +306,4 @@ void shell_tick() {
       }
     }
   }
-}
-
-float shell_atof(char *str) {
-  int sign = (str[0] == '-') ? -1 : 1;
-  float f = atoi(str);
-  char *savePtr;
-  strtok_r(str, ".", &savePtr);
-  char *floatPart = strtok_r(NULL, ".", &savePtr);
-  if (floatPart != NULL) {
-    float divide = 1;
-    for (char *tmp = floatPart; *tmp != '\0'; tmp++) {
-      divide *= 10;
-    }
-    f += sign * atoi(floatPart) / divide;
-  }
-
-  return f;
-}
-
-void shell_println() { shell_print("\r\n"); }
-
-void shell_print_bool(bool value) {
-  if (value) {
-    shell_print("true");
-  } else {
-    shell_print("false");
-  }
-}
-
-void shell_print(const char *s) { stream->puts(s); }
-
-void shell_print(char c) { stream->putc(c); }
-
-void shell_print(unsigned long long n, uint8_t base) {
-  unsigned char buf[CHAR_BIT * sizeof(long long)];
-  unsigned long i = 0;
-
-  if (n == 0) {
-    shell_print('0');
-    return;
-  }
-
-  while (n > 0) {
-    buf[i++] = n % base;
-    n /= base;
-  }
-
-  for (; i > 0; i--) {
-    shell_print(
-        (char)(buf[i - 1] < 10 ? '0' + buf[i - 1] : 'A' + buf[i - 1] - 10));
-  }
-}
-
-void shell_print(long long n, uint8_t base) {
-  if (n < 0) {
-    shell_print('-');
-    n = -n;
-  }
-  shell_print((unsigned long long)n, base);
-}
-
-void shell_print(int n, uint8_t base) {
-  if (n < 0) {
-    shell_print('-');
-    n = -n;
-  }
-  shell_print((unsigned long long)n, base);
-}
-
-void shell_print(unsigned int n, uint8_t base) {
-  shell_print((unsigned long long)n, base);
-}
-
-#define LARGE_DOUBLE_TRESHOLD (9.1e18)
-
-void shell_print(double number, int digits) {
-  // Hackish fail-fast behavior for large-magnitude doubles
-  if (abs(number) >= LARGE_DOUBLE_TRESHOLD) {
-    if (number < 0.0) {
-      shell_print('-');
-    }
-    shell_print("<large double>");
-    return;
-  }
-
-  // Handle negative numbers
-  if (number < 0.0) {
-    shell_print('-');
-    number = -number;
-  }
-
-  // Simplistic rounding strategy so that e.g. print(1.999, 2)
-  // prints as "2.00"
-  double rounding = 0.5;
-  for (uint8_t i = 0; i < digits; i++) {
-    rounding /= 10.0;
-  }
-  number += rounding;
-
-  // Extract the integer part of the number and print it
-  long long int_part = (long long)number;
-  double remainder = number - int_part;
-  shell_print(int_part);
-
-  // Print the decimal point, but only if there are digits beyond
-  if (digits > 0) {
-    shell_print('.');
-  }
-
-  // Extract digits from the remainder one at a time
-  while (digits-- > 0) {
-    remainder *= 10.0;
-    int to_print = (int)remainder;
-    shell_print(to_print);
-    remainder -= to_print;
-  }
-}
-
-void shell_print(bool b) { shell_print_bool(b); }
-
-void shell_println(const char *s) {
-  shell_print(s);
-  shell_println();
-}
-
-void shell_println(char c) {
-  shell_print(c);
-  shell_println();
-}
-
-void shell_println(unsigned long long n, uint8_t base) {
-  shell_print(n, base);
-  shell_println();
-}
-
-void shell_println(long long n, uint8_t base) {
-  shell_print(n, base);
-  shell_println();
-}
-
-void shell_println(int n, uint8_t base) {
-  shell_print(n, base);
-  shell_println();
-}
-
-void shell_println(unsigned int n, uint8_t base) {
-  shell_print(n, base);
-  shell_println();
-}
-
-void shell_println(double d, int digits) {
-  shell_print(d, digits);
-  shell_println();
-}
-
-void shell_println(bool b) {
-  shell_print(b);
-  shell_println();
-}
-
-void shell_printf(char *format, ...) {
-  std::va_list args;
-  va_start(args, format);
-  int str_size = vsnprintf(NULL, 0, format, args);
-  va_end(args);
-  char buffer[str_size+1];
-  va_start(args, format);
-  vsnprintf(buffer, str_size+1, format, args);
-  va_end(args);
-
-  stream->write(buffer, str_size);
 }

@@ -1,10 +1,8 @@
 #ifndef _RHOBAN_SHELL_H
 #define _RHOBAN_SHELL_H
 
-#include <Stream.h>
-#include <mbed.h>
+#include <Arduino.h>
 #include <stdlib.h>
-#include "USBSerial.h"
 
 /**
  * Maximum length of a command line
@@ -36,20 +34,14 @@
  * @param com : you have to provide to shell_init
  * an initialized instance of USBSerial or HardwareSerial
  */
-void shell_init(mbed::Stream *stream);
+void shell_init(Stream *stream);
 
 void shell_init_usb();
 
 /**
  * Get the shell stream instance
  */
-mbed::Stream *shell_stream();
-USBSerial *shell_usb_stream();
-
-/**
- *  There is data available from user (can be used to stop an infinite loop in a command)
- */
-bool shell_available();
+Stream *shell_stream();
 
 /**
  * Resets the shell
@@ -155,28 +147,6 @@ float shell_atof(char *str);
 
 #define SHELL_PARAMETER_BOOL(name, description, startValue) \
     SHELL_PARAMETER(name, description, startValue, bool, (bool)atoi)
-
-// Utility functions
-void shell_print(const char *s);
-void shell_print(char c);
-void shell_print(unsigned long long n, uint8_t base=10);
-void shell_print(long long n, uint8_t base=10);
-void shell_print(int n, uint8_t base=10);
-void shell_print(unsigned int n, uint8_t base=10);
-void shell_print(double d, int digits=2);
-void shell_print(bool b);
-
-void shell_println(const char *s);
-void shell_println(char c);
-void shell_println(unsigned long long n, uint8_t base=10);
-void shell_println(long long n, uint8_t base=10);
-void shell_println(int n, uint8_t base=10);
-void shell_println(unsigned int n, uint8_t base=10);
-void shell_println(double d, int digits=2);
-void shell_println(bool b);
-void shell_println();
-
-void shell_printf(char *format, ...);
 
 #endif // _shell_H
 
