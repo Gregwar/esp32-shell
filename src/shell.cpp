@@ -233,9 +233,9 @@ void shell_process() {
 /**
  * Save the Serial object globaly
  */
-void shell_init() {
-  Serial.begin(115200);
-  shell_server.begin(3030);
+void shell_init(uint32_t baudrate, uint32_t tcp_port) {
+  Serial.begin(baudrate);
+  shell_server.begin(tcp_port);
   stream = nullptr;
 }
 

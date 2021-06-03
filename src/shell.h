@@ -34,7 +34,7 @@
  * @param com : you have to provide to shell_init
  * an initialized instance of USBSerial or HardwareSerial
  */
-void shell_init();
+void shell_init(uint32_t baudrate=115200, uint32_t tcp_port = 3030);
 
 /**
  * Get the shell stream instance
