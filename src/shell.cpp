@@ -1,10 +1,14 @@
 #include "shell.h"
+#include <WiFi.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 static Stream *stream = nullptr;
 static bool disabled = false;
+
+WiFiServer shell_server;
+WiFiClient shell_client;
 
 /**
  * Global variables shell
@@ -115,7 +119,11 @@ SHELL_COMMAND(echo, "Switch echo mode. Usage echo [on|off]") {
 /**
  * Write the shell prompt
  */
-void shell_prompt() { shell_stream()->print(SHELL_PROMPT); }
+void shell_prompt() {
+  if (shell_stream() != nullptr) {
+    shell_stream()->print(SHELL_PROMPT);
+  }
+}
 
 const struct shell_command *
 shell_find_command(char *command_name, unsigned int command_name_length) {
@@ -225,9 +233,10 @@ void shell_process() {
 /**
  * Save the Serial object globaly
  */
-void shell_init(Stream *stream_) {
-  stream = stream_;
-  shell_prompt();
+void shell_init() {
+  Serial.begin(115200);
+  shell_server.begin(3030);
+  stream = nullptr;
 }
 
 Stream *shell_stream() { return stream; }
@@ -255,6 +264,25 @@ void shell_enable() {
  * and eventually a call to the process function on new lines
  */
 void shell_tick() {
+  if (stream != &Serial && Serial.available()) {
+    stream = &Serial;
+    shell_client = WiFiClient();
+  }
+
+  WiFiClient new_client = shell_server.available();
+
+  if (new_client || (shell_client && !shell_client.connected())) {
+    shell_client = WiFiClient();
+    if (stream == &shell_client) {
+      stream = nullptr;
+    }
+  }
+
+  if (new_client) {
+    shell_client = new_client;
+    stream = &shell_client;
+  }
+
   if (disabled || stream == nullptr) {
     return;
   }
@@ -262,7 +290,7 @@ void shell_tick() {
   char c;
   uint8_t input;
 
-  while (stream->available()) {
+  while (stream != nullptr && stream->available()) {
     input = stream->read();
     c = (char)input;
     if (c == '\0' || c == 0xff) {

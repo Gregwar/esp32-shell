@@ -34,9 +34,7 @@
  * @param com : you have to provide to shell_init
  * an initialized instance of USBSerial or HardwareSerial
  */
-void shell_init(Stream *stream);
-
-void shell_init_usb();
+void shell_init();
 
 /**
  * Get the shell stream instance
