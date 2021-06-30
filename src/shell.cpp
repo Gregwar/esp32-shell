@@ -239,6 +239,19 @@ void shell_init(uint32_t baudrate, uint32_t tcp_port) {
   stream = nullptr;
 }
 
+TaskHandle_t shell_task_handle = NULL;
+
+void shell_task(void*) {
+  while(true) {
+    shell_tick();
+    vTaskDelay(10);
+  }
+}
+
+void shell_start_task() {
+  xTaskCreate(shell_task, "nfc", 4096, NULL, 0, &shell_task_handle);
+}
+
 Stream *shell_stream() { return stream; }
 
 void shell_reset() {

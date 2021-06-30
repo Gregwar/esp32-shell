@@ -37,6 +37,11 @@
 void shell_init(uint32_t baudrate=115200, uint32_t tcp_port = 3030);
 
 /**
+ * Starts a task to run the shell in background
+ */
+void shell_start_task();
+
+/**
  * Get the shell stream instance
  */
 Stream *shell_stream();
