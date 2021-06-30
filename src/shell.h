@@ -126,10 +126,10 @@ void shell_register(const struct shell_command *command);
             g = conversion(argv[0]); \
             name = g; \
         } \
-        shell_print( #name ); \
-        shell_print("="); \
-        shell_print(name); \
-        shell_println(); \
+        shell_stream()->print( #name ); \
+        shell_stream()->print("="); \
+        shell_stream()->print(name); \
+        shell_stream()->println(); \
     }
 
 float shell_atof(char *str);
