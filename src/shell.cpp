@@ -1,5 +1,6 @@
 #include "shell.h"
 #include <WiFi.h>
+#include <Ethernet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,8 +8,21 @@
 static Stream *stream = nullptr;
 static bool disabled = false;
 
-WiFiServer shell_server;
-WiFiClient shell_client;
+#if !defined(NETWORK_WIFI) && !defined(NETWORK_ETHERNET)
+#define NETWORK_WIFI
+#endif
+
+#ifdef NETWORK_WIFI
+using NetServer = WiFiServer;
+using NetClient = WiFiClient;
+#endif
+#ifdef NETWORK_ETHERNET
+using NetServer = EthernetServer;
+using NetClient = EthernetClient;
+#endif
+
+NetServer shell_server(3030);
+NetClient shell_client;
 
 /**
  * Global variables shell
@@ -279,13 +293,13 @@ void shell_enable() {
 void shell_tick() {
   if (stream != &Serial && Serial.available()) {
     stream = &Serial;
-    shell_client = WiFiClient();
+    shell_client = NetClient();
   }
 
-  WiFiClient new_client = shell_server.available();
+  NetClient new_client = shell_server.available();
 
   if (new_client || (shell_client && !shell_client.connected())) {
-    shell_client = WiFiClient();
+    shell_client = NetClient();
     if (stream == &shell_client) {
       stream = nullptr;
     }
