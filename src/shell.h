@@ -140,10 +140,10 @@ void shell_register(const struct shell_command *command);
 float shell_atof(char *str);
 
 #define SHELL_PARAMETER_FLOAT(name, description, startValue) \
-    SHELL_PARAMETER(name, description, startValue, float, shell_atof)
+    SHELL_PARAMETER(name, description, startValue, float, atof)
 
 #define SHELL_PARAMETER_DOUBLE(name, description, startValue) \
-    SHELL_PARAMETER(name, description, startValue, double, shell_atof)
+    SHELL_PARAMETER(name, description, startValue, double, atof)
 
 #define SHELL_PARAMETER_INT(name, description, startValue) \
     SHELL_PARAMETER(name, description, startValue, int, atoi)
