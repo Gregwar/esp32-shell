@@ -1,6 +1,4 @@
 #include "shell.h"
-#include <WiFi.h>
-#include <Ethernet.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,10 +11,12 @@ static bool disabled = false;
 #endif
 
 #ifdef NETWORK_WIFI
+#include <WiFi.h>
 using NetServer = WiFiServer;
 using NetClient = WiFiClient;
 #endif
 #ifdef NETWORK_ETHERNET
+#include <Ethernet.h>
 using NetServer = EthernetServer;
 using NetClient = EthernetClient;
 #endif
