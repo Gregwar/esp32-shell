@@ -6,10 +6,6 @@
 static Stream *stream = nullptr;
 static bool disabled = false;
 
-#if !defined(NETWORK_WIFI) && !defined(NETWORK_ETHERNET)
-#define NETWORK_WIFI
-#endif
-
 #ifdef NETWORK_WIFI
 #include <WiFi.h>
 using NetServer = WiFiServer;
@@ -21,8 +17,10 @@ using NetServer = EthernetServer;
 using NetClient = EthernetClient;
 #endif
 
+#if defined(NETWORK_WIFI) or defined(NETWORK_ETHERNET)
 NetServer shell_server(3030);
 NetClient shell_client;
+#endif
 
 /**
  * Global variables shell
@@ -249,8 +247,12 @@ void shell_process() {
  */
 void shell_init(uint32_t baudrate, uint32_t tcp_port) {
   Serial.begin(baudrate);
+#if defined(NETWORK_WIFI) or defined(NETWORK_ETHERNET)
   shell_server.begin(tcp_port);
   stream = nullptr;
+#else
+  stream = &Serial;
+#endif
 }
 
 TaskHandle_t shell_task_handle = NULL;
@@ -263,7 +265,7 @@ void shell_task(void*) {
 }
 
 void shell_start_task() {
-  xTaskCreate(shell_task, "nfc", 4096, NULL, 0, &shell_task_handle);
+  xTaskCreate(shell_task, "shell", 4096, NULL, 0, &shell_task_handle);
 }
 
 Stream *shell_stream() { return stream; }
@@ -291,6 +293,7 @@ void shell_enable() {
  * and eventually a call to the process function on new lines
  */
 void shell_tick() {
+#if defined(NETWORK_WIFI) or defined(NETWORK_ETHERNET)
   if (stream != &Serial && Serial.available()) {
     stream = &Serial;
     shell_client = NetClient();
@@ -309,6 +312,7 @@ void shell_tick() {
     shell_client = new_client;
     stream = &shell_client;
   }
+#endif
 
   if (disabled || stream == nullptr) {
     return;
