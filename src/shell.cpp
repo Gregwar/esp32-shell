@@ -268,6 +268,10 @@ void shell_start_task() {
   xTaskCreate(shell_task, "shell", 4096, NULL, 0, &shell_task_handle);
 }
 
+void shell_set_stream(Stream *stream_) { 
+  stream = stream_;
+}
+
 Stream *shell_stream() { return stream; }
 
 void shell_reset() {

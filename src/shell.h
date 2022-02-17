@@ -44,6 +44,7 @@ void shell_start_task();
 /**
  * Get the shell stream instance
  */
+void shell_set_stream(Stream *stream);
 Stream *shell_stream();
 
 /**
